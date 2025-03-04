@@ -3,6 +3,8 @@ import torch
 import easyocr
 from ultralytics import YOLO
 import matplotlib.pyplot as plt
+import process_helmet
+import asyncio
 
 # Load YOLOv8 model
 model = YOLO("yolov8n.pt")  # Pretrained YOLOv8 model
@@ -81,10 +83,12 @@ for (x1, y1, x2, y2) in merged_boxes:
     cv2.rectangle(image, (x1, y1), (x2, y2), (0, 0, 255), 1)  # Red box for bike + rider
     cv2.putText(image, "Bike + Rider", (x1, y1 - 10),
                 cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 255), 2)
-
+    process_helmet.process_cropped_frame(image[y1:y2, x1:x2])
+    
 
 # Convert BGR (OpenCV format) to RGB (Matplotlib format)
 image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+
 
 plt.figure(figsize=(10, 6))
 plt.imshow(image_rgb)
