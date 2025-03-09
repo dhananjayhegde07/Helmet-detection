@@ -4,6 +4,7 @@ import cv2
 import asyncio
 from ultralytics import YOLO
 from datetime import datetime
+import easyocr
 
 
 model = YOLO("best.pt")
@@ -13,6 +14,8 @@ CLASS_NAMES = {0: "with-helmet", 1: "without-helmet", 2: "rider", 3: "number_pla
 VIOLATION_FILE = "violations.json"
 
 violations = []
+
+reader = easyocr.Reader(['en'])
 
 async def process_rider(image_path, img, rider_bbox):
     global violations
@@ -29,7 +32,6 @@ async def process_rider(image_path, img, rider_bbox):
 
     for result in results:
         for box in result.boxes:
-            print(box)
             cls = int(box.cls[0])
             bx1, by1, bx2, by2 = map(int, box.xyxy[0])
 
@@ -39,10 +41,12 @@ async def process_rider(image_path, img, rider_bbox):
                 has_no_helmet = True
             elif CLASS_NAMES[cls] == "number_plate":
                 number_plate_bbox = [x1 + bx1, y1 + by1, x1 + bx2, y1 + by2]
+                print(get_text(img[number_plate_bbox[1]:number_plate_bbox[3], number_plate_bbox[0]:number_plate_bbox[2]]))
 
     # Save violation if rider has no helmet
     if has_no_helmet and not has_helmet:
         print("here")
+        print(get_text(img[number_plate_bbox[1]:number_plate_bbox[3], number_plate_bbox[0]:number_plate_bbox[2]]))
         violation_entry = {
             "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             "image": os.path.basename(image_path),
@@ -50,6 +54,11 @@ async def process_rider(image_path, img, rider_bbox):
             "number_plate": number_plate_bbox
         }
         violations.append(violation_entry)
+
+def get_text(frame):
+    results = reader.readtext(frame)
+    plate_text = " ".join([res[1] for res in results])  # Extract detected text
+    return plate_text if plate_text else "N/A"
 
 async def detect_violations(image_path):
     img = cv2.imread(image_path)
@@ -68,7 +77,7 @@ async def detect_violations(image_path):
     await asyncio.gather(*tasks)
 
 async def main():
-    await detect_violations("d5.jpg")
+    await detect_violations("d7.jpg")
 
     print(f"Violations saved to {VIOLATION_FILE}")
 

@@ -10,7 +10,7 @@ import asyncio
 model = YOLO("yolov8n.pt")  # Pretrained YOLOv8 model
 
 # Load image
-image_path = "d4.jpeg"
+image_path = "d7.jpg"
 image = cv2.imread(image_path)
 
 # Run detection
@@ -24,22 +24,27 @@ plates = []
 # Extract detected objects
 for result in results:
     for box in result.boxes:
-        cls = int(box.cls[0])  # Class ID
-        x1, y1, x2, y2 = map(int, box.xyxy[0])  # Bounding box coordinates
+        cls = int(box.cls[0]) 
+        x1, y1, x2, y2 = map(int, box.xyxy[0])  
 
         if cls == 0:  # Person (Rider)
             riders.append((x1, y1, x2, y2))
+            cv2.rectangle(image, (x1, y1), (x2, y2), (0, 0, 255), 1)  
+            cv2.putText(image, "Bike + Rider", (x1, y1 - 10),
+                cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 255), 2)
         elif cls == 3:  # Motorbike
             bikes.append((x1, y1, x2, y2))
+            cv2.rectangle(image, (x1, y1), (x2, y2), (0, 0, 255), 1)  
+            cv2.putText(image, "Bike + Rider", (x1, y1 - 10),
+                cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 255), 2)
 
-        elif cls == 39:  # License Plate (some YOLO models have number plate class)
+        elif cls == 39:  
             plates.append((x1, y1, x2, y2))
 
 print(riders,bikes,plates)
 
-merged_boxes = []
+# merged_boxes = []
 
-# Function to check IoU (Intersection over Union)
 def iou(box1, box2):
     x1, y1, x2, y2 = box1
     x1b, y1b, x2b, y2b = box2
@@ -59,23 +64,31 @@ def iou(box1, box2):
 
     return intersection / union if union > 0 else 0
 
+
+merged_boxes = []
+
 for bike in bikes:
     bx1, by1, bx2, by2 = bike  # Bike box
 
     for rider in riders:
         rx1, ry1, rx2, ry2 = rider  # Rider box
 
-        if iou(bike, rider) > 0.2:  # Loosen the IoU threshold
-            bike_center_y = (by1 + by2) // 2  # Middle of bike
-            rider_bottom = ry2  # Rider's bottom
+        # Calculate IoU and dynamically adjust threshold
+        iou_value = iou(bike, rider)
+        print(f"IoU between bike {bike} and rider {rider}: {iou_value}")
 
-            if rider_bottom <= by2 + 30:  # Allow slight tolerance
+        iou_threshold = 0.05  # If the rider is above the bike, relax threshold
+
+        if iou_value > iou_threshold:
+            # Ensure the rider is logically positioned above the bike
+            if ry2 >= by1 and ry1 < by2 + 30:  # More robust condition for alignment
                 merged_x1 = min(bx1, rx1)
                 merged_y1 = min(by1, ry1)
                 merged_x2 = max(bx2, rx2)
                 merged_y2 = max(by2, ry2)
 
                 merged_boxes.append((merged_x1, merged_y1, merged_x2, merged_y2))
+
 
 print(merged_boxes)
 # Draw merged bounding boxes for bike + rider
@@ -84,6 +97,7 @@ for (x1, y1, x2, y2) in merged_boxes:
     cv2.putText(image, "Bike + Rider", (x1, y1 - 10),
                 cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 255), 2)
     process_helmet.process_cropped_frame(image[y1:y2, x1:x2])
+    cv2.imwrite("cropped.jpg",image[y1:y2, x1:x2])
     
 
 # Convert BGR (OpenCV format) to RGB (Matplotlib format)
