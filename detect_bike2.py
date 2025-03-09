@@ -77,6 +77,7 @@ async def detect_violations(image_path):
     await asyncio.gather(*tasks)
 
 async def main():
+    # upload and add image path here
     await detect_violations("d7.jpg")
 
     print(f"Violations saved to {VIOLATION_FILE}")
